@@ -55,6 +55,13 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
     private lateinit var webView: WebView
     private lateinit var spinner: ProgressBar
     private val background = GradientDrawable()
+
+    /* The border must render ABOVE the WebView (the page paints its own
+       background over the container), so it lives on the container's
+       foreground, not its background drawable. */
+    private val borderDrawable = GradientDrawable().apply {
+        setColor(Color.TRANSPARENT)
+    }
     private val mainHandler = Handler(Looper.getMainLooper())
     private var closeSent = false
     private var lastResponses: List<Map<String, Any?>> = emptyList()
@@ -100,6 +107,7 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
                 (LOADING_HEIGHT_DP * density).toInt()
             )
             background = this@ZigpollSurveyFragment.background
+            foreground = borderDrawable
             clipToOutline = true
         }
 
@@ -233,9 +241,9 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
         val borderWidth = body.optDouble("borderWidth", 0.0)
         val borderColor = parseCssColor(body.optString("borderColor"))
         if (borderWidth > 0 && borderColor != null) {
-            background.setStroke((borderWidth * density).toInt().coerceAtLeast(1), borderColor)
+            borderDrawable.setStroke((borderWidth * density).toInt().coerceAtLeast(1), borderColor)
         } else {
-            background.setStroke(0, Color.TRANSPARENT)
+            borderDrawable.setStroke(0, Color.TRANSPARENT)
         }
     }
 
@@ -244,12 +252,14 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
     }
 
     private fun applyCornerRadius() {
-        background.cornerRadii = floatArrayOf(
+        val radii = floatArrayOf(
             cornerRadiusPx, cornerRadiusPx,
             cornerRadiusPx, cornerRadiusPx,
             0f, 0f,
             0f, 0f
         )
+        background.cornerRadii = radii
+        borderDrawable.cornerRadii = radii
     }
 
     /** Parses "#fff", "#ffffff", "rgb(r, g, b)", or "rgba(r, g, b, a)". */
