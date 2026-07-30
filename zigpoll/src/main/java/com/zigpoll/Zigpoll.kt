@@ -43,6 +43,8 @@ object Zigpoll {
     internal var identifiedMetadata: Map<String, String> = emptyMap()
     internal var customMetadata: MutableMap<String, String> = mutableMapOf()
     internal var appVersion: String? = null
+    internal var appBuild: String? = null
+    internal var appContext: Context? = null
     private var currentFragment: ZigpollSurveyFragment? = null
 
     /**
@@ -61,12 +63,17 @@ object Zigpoll {
         if (!baseUrl.isNullOrEmpty()) {
             this.baseUrl = baseUrl.trimEnd('/')
         }
+        appContext = context.applicationContext
         ZigpollStorage.initialize(context.applicationContext)
         identifiedId = ZigpollStorage.loadIdentifiedId()
-        appVersion = try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName
+        try {
+            val info = context.packageManager.getPackageInfo(context.packageName, 0)
+            appVersion = info.versionName
+            @Suppress("DEPRECATION")
+            appBuild = info.versionCode.toString()
         } catch (e: Exception) {
-            null
+            appVersion = null
+            appBuild = null
         }
     }
 
@@ -151,11 +158,36 @@ object Zigpoll {
             builder.appendQueryParameter("preview", "1")
         }
 
+        /* Automatic context -- everything available WITHOUT permissions,
+           all non-identifying. Location is deliberately absent: the API
+           geolocates each request server-side from its IP. Excluded on
+           principle: GPS, advertising ids, carrier, device name; connection
+           type is excluded because ACCESS_NETWORK_STATE would be an added
+           manifest permission. Developer-set metadata wins on collisions. */
+        val resources = android.content.res.Resources.getSystem()
+        val metrics = resources.displayMetrics
+        val configuration = resources.configuration
+        val nightMask = configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK
+
         val metadata = sortedMapOf<String, String>()
         metadata["source"] = "mobile-sdk"
         metadata["platform"] = "android"
         metadata["sdk_version"] = SDK_VERSION
+        metadata["device_model"] = "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}".trim()
+        metadata["device_type"] = if (configuration.smallestScreenWidthDp >= 600) "tablet" else "phone"
+        metadata["os_version"] = android.os.Build.VERSION.RELEASE ?: android.os.Build.VERSION.SDK_INT.toString()
+        metadata["os_api"] = android.os.Build.VERSION.SDK_INT.toString()
+        metadata["screen"] = "${metrics.widthPixels}x${metrics.heightPixels}@${metrics.density}x"
+        metadata["locale"] = java.util.Locale.getDefault().toLanguageTag()
+        metadata["timezone"] = java.util.TimeZone.getDefault().id
+        metadata["dark_mode"] = (nightMask == android.content.res.Configuration.UI_MODE_NIGHT_YES).toString()
+        appContext?.let { context ->
+            metadata["app_id"] = context.packageName
+            val power = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+            power?.let { metadata["low_power_mode"] = it.isPowerSaveMode.toString() }
+        }
         appVersion?.let { metadata["app_version"] = it }
+        appBuild?.let { metadata["app_build"] = it }
         metadata.putAll(identifiedMetadata)
         metadata.putAll(customMetadata)
 

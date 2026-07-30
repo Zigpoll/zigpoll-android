@@ -111,6 +111,10 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
             clipToOutline = true
         }
 
+        if ((requireContext().applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
+
         webView = WebView(requireContext()).apply {
             settings.javaScriptEnabled = true
             /* The embed's session storage throws without DOM storage. */
@@ -347,6 +351,11 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
 
     /** The survey's exit-confirmation rules use window.confirm. */
     private inner class SurveyWebChromeClient : WebChromeClient() {
+        override fun onConsoleMessage(message: android.webkit.ConsoleMessage): Boolean {
+            android.util.Log.d("ZigpollJS", "${message.messageLevel()} ${message.message()} @${message.sourceId()}:${message.lineNumber()}")
+            return true
+        }
+
         override fun onJsConfirm(view: WebView, url: String, message: String, result: JsResult): Boolean {
             AlertDialog.Builder(requireContext())
                 .setMessage(message)
