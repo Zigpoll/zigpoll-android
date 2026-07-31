@@ -11,20 +11,20 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.zigpoll.Zigpoll
 
-/* Demo app for the Zigpoll Android SDK, wired to the "Demo Account" /
-   "Mobile SDK Demo Survey" (API delivery).
+/* Demo app for the Zigpoll Android SDK. Replace YOUR_ACCOUNT_ID and
+   YOUR_SURVEY_ID with values from your dashboard (API delivery survey).
 
    UI-test hook: adb shell am start -n com.zigpoll.example/.MainActivity --ez autotrigger true */
 
 class MainActivity : AppCompatActivity() {
 
-    private val pollId = "6a6b7d8737c9f55dfe9d6216"
+    private val pollId = "YOUR_SURVEY_ID"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Zigpoll.configure(this, "669874c2d798c46c72ab94d3", preview = true)
-        Zigpoll.identify("demo-user-1", mapOf("email" to "demo@example.com"))
+        Zigpoll.configure(this, "YOUR_ACCOUNT_ID", preview = true)
+        Zigpoll.identify("example-user-1", mapOf("email" to "user@example.com"))
 
         Zigpoll.onLoad = { Log.d("demo", "survey loaded") }
         Zigpoll.onComplete = { responses -> Log.d("demo", "completed: ${responses.size} responses") }
