@@ -330,16 +330,25 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
 
     private inner class SurveyWebViewClient : WebViewClient() {
         override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-            /* Survey links (reward links, redirect actions) open in the
-               browser; only the survey page itself stays in the sheet. */
+            /* Only the survey host may load in this WebView -- it is the
+               origin the JS bridge is exposed to. Everything else (reward
+               links, redirect actions, gesture or not) opens in the browser;
+               non-http schemes are dropped. */
             if (!request.isForMainFrame) return false
-            if (!request.hasGesture()) return false
-            return try {
-                startActivity(Intent(Intent.ACTION_VIEW, request.url))
-                true
-            } catch (e: Exception) {
-                false
+
+            val surveyHost = Uri.parse(Zigpoll.baseUrl).host
+            val target = request.url
+            if (target.host != null && target.host == surveyHost) return false
+
+            val scheme = target.scheme?.lowercase()
+            if (scheme == "http" || scheme == "https") {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, target))
+                } catch (e: Exception) {
+                    // No browser available; drop the navigation.
+                }
             }
+            return true
         }
 
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
