@@ -24,7 +24,7 @@ dependencyResolutionManagement {
 And in your module's dependencies:
 
 ```kotlin
-implementation("com.github.zigpoll:zigpoll-android:main-SNAPSHOT")
+implementation("com.github.zigpoll:zigpoll-android:master-SNAPSHOT")
 ```
 
 ## Setup
