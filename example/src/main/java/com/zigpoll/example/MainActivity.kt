@@ -18,12 +18,12 @@ import com.zigpoll.Zigpoll
 
 class MainActivity : AppCompatActivity() {
 
-    private val pollId = "YOUR_SURVEY_ID"
+    private val pollId = "6a846fb17cab765fd46e6683"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        Zigpoll.configure(this, "YOUR_ACCOUNT_ID", preview = true)
+        Zigpoll.configure(this, "5ca26e2cbd129162f0ca3ed2", preview = true)
         Zigpoll.identify("example-user-1", mapOf("email" to "user@example.com"))
 
         Zigpoll.onLoad = { Log.d("demo", "survey loaded") }
