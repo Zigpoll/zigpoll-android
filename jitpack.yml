@@ -1,0 +1,4 @@
+# The Android Gradle Plugin this project uses needs JDK 17; JitPack's default
+# is older, and the build failed before it reached the code.
+jdk:
+  - openjdk17
