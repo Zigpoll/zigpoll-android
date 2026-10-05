@@ -2,6 +2,7 @@ package com.zigpoll
 
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.app.Dialog
 import android.content.DialogInterface
 import android.content.Intent
@@ -18,6 +19,7 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.webkit.JavascriptInterface
 import android.webkit.JsResult
+import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
@@ -25,6 +27,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.FrameLayout
 import android.widget.ProgressBar
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -53,6 +56,26 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
 
     private lateinit var container: FrameLayout
     private lateinit var webView: WebView
+
+    /* A file input in the survey (a File Upload question, or the attach bar
+       on a Long Answer) asks the host for a picker: a WebView has none of
+       its own. The page waits on this callback, and it must be answered
+       exactly once -- with the files, or with null when nothing was picked --
+       or the input never opens again. The system document picker needs no
+       permission from the host app. */
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private val fileChooserLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val callback = fileChooserCallback
+        fileChooserCallback = null
+        callback?.onReceiveValue(pickedFiles(result.resultCode, result.data))
+    }
+
+    private fun pickedFiles(resultCode: Int, data: Intent?): Array<Uri>? {
+        if (resultCode != Activity.RESULT_OK || data == null) return null
+        val clip = data.clipData
+        if (clip != null && clip.itemCount > 0) return Array(clip.itemCount) { clip.getItemAt(it).uri }
+        return data.data?.let { arrayOf(it) }
+    }
     private lateinit var spinner: ProgressBar
     private val background = GradientDrawable()
 
@@ -159,6 +182,8 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
     }
 
     override fun onDestroyView() {
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = null
         heightAnimator?.cancel()
         webView.removeJavascriptInterface("ZigpollNative")
         webView.destroy()
@@ -360,6 +385,28 @@ internal class ZigpollSurveyFragment : BottomSheetDialogFragment() {
 
     /** The survey's exit-confirmation rules use window.confirm. */
     private inner class SurveyWebChromeClient : WebChromeClient() {
+        override fun onShowFileChooser(
+            webView: WebView,
+            filePathCallback: ValueCallback<Array<Uri>>,
+            fileChooserParams: FileChooserParams
+        ): Boolean {
+            /* A picker still open from an earlier tap is answered first. */
+            fileChooserCallback?.onReceiveValue(null)
+            fileChooserCallback = filePathCallback
+            try {
+                val intent = fileChooserParams.createIntent()
+                if (fileChooserParams.mode == FileChooserParams.MODE_OPEN_MULTIPLE) {
+                    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                }
+                fileChooserLauncher.launch(intent)
+            } catch (e: Exception) {
+                // No app can pick a file; tell the page nothing was chosen.
+                fileChooserCallback = null
+                filePathCallback.onReceiveValue(null)
+            }
+            return true
+        }
+
         override fun onConsoleMessage(message: android.webkit.ConsoleMessage): Boolean {
             android.util.Log.d("ZigpollJS", "${message.messageLevel()} ${message.message()} @${message.sourceId()}:${message.lineNumber()}")
             return true
